@@ -1,0 +1,172 @@
+# Old partitioning - debian-installer style
+#d-i partman-auto/method string crypto
+#d-i partman-lvm/device_remove_lvm boolean true
+#d-i partman-md/device_remove_md boolean true
+#d-i partman-lvm/confirm boolean true
+#d-i partman-lvm/confirm_nooverwrite boolean true
+
+# Ubiquity style partitioning
+ubiquity partman-auto/disk string /dev/sda
+ubiquity partman-auto/method string regular
+ubiquity partman-auto-lvm/guided_size string max
+ubiquity partman-lvm/device_remove_lvm boolean true
+ubiquity partman-md/device_remove_md boolean true
+# Uncomment line below to skip partioning layout confirmation
+ubiquity partman-lvm/confirm boolean true
+
+### PARTITIONING ###
+# To customise the partitioning layout comment the following line
+# and uncomment the "Custom Partitioning" section below
+# and apply the appropriate changes
+ubiquity partman-auto/choose_recipe select home
+
+### BEGIN CUSTOM PARTITIONING ###
+# 
+#ubiquity partman-auto/choose_recipe select my-recipe
+#
+#ubiquity partman-auto/expert_recipe string                    
+#      root-encrypted ::                                       
+#              512 512 512 fat32                               
+#                      $primary{ }                             
+#                      method{ efi }                           
+#                      $lvmignore{ }                           
+#                      format{ }                               
+#              .                                               
+#              1000 1000 1000 ext4                             
+#                      $primary{ } $bootable{ }                
+#                      method{ format } format{ }              
+#                      use_filesystem{ } filesystem{ ext4 }    
+#                      mountpoint{ /boot }                     
+#              .                                               
+#              2000 2000 2000 linux-swap                       
+#                      $lvmok{ } lv_name{ swap }               
+#                      method{ swap } format{ }                
+#              .                                               
+#              5000 10000 40000 ext4                           
+#                      $lvmok{ } lv_name{ root }               
+#                      method{ format } format{ }              
+#                      use_filesystem{ } filesystem{ ext4 }    
+#                      mountpoint{ / }                         
+#              .                                               
+#              1000 2000 4000 ext4                             
+#                      $lvmok{ } lv_name{ tmp }                
+#                      method{ format } format{ }              
+#                      use_filesystem{ } filesystem{ ext4 }    
+#                      mountpoint{ /tmp }                      
+#              .                                               
+#              500 10000 1000000000 ext4                       
+#                      $lvmok{ } lv_name{ home }               
+#                      method{ format } format{ }              
+#                      use_filesystem{ } filesystem{ ext4 }    
+#                      mountpoint{ /home }                     
+#              .                                               
+#
+### END CUSTOM PARTITIONING ###
+
+# This makes partman automatically partition without confirmation
+d-i partman-partitioning/confirm_write_new_label boolean true
+d-i partman/choose_partition select finish
+d-i partman/confirm boolean true
+d-i partman/confirm_nooverwrite boolean true
+
+# This is fairly safe to set, it makes grub install automatically to the MBR
+# if no other operating system is detected on the machine.
+d-i grub-installer/only_debian boolean true
+
+# This one makes grub-installer install to the MBR if it also finds some other
+# OS, which is less safe as it might not be able to boot that other OS.
+d-i grub-installer/with_other_os boolean true
+
+# Locale
+d-i debian-installer/locale string uk_UA
+d-i console-setup/ask_detect boolean false
+d-i console-setup/layoutcode string us
+
+# Network
+d-i netcfg/get_hostname string Ubuntu-ws-01
+d-i netcfg/get_domain string test.lab
+
+# WiFi network
+# Predetermine several required settings for wifi, misc.
+d-i netcfg/choose_interface select auto
+d-i netcfg/wireless_show_essids select SMIN
+d-i netcfg/wireless_essid string SMIN
+d-i netcfg/wireless_essid_again string SMIN
+d-i netcfg/wireless_security_type select wpa
+d-i netcfg/wireless_wpa string R8ozYvsr
+
+# Clock
+d-i clock-setup/utc-auto boolean true
+d-i clock-setup/utc boolean true
+d-i time/zone string Europe/Kiev
+d-i clock-setup/ntp boolean true
+d-i clock-setup/ntp-server string dc-01.test.lab
+
+### Package selection
+tasksel tasksel/first multiselect ubuntu-desktop
+
+# Packages, Mirrors, Image
+d-i mirror/country string UA
+#d-i mirror/http/proxy string http://172.19.1.1:3142
+d-i apt-setup/restricted boolean true
+d-i apt-setup/universe boolean true
+
+# Language pack selection
+d-i pkgsel/language-packs multiselect uk
+d-i pkgsel/install-language-support boolean true
+
+# Users
+d-i passwd/user-fullname string ansible
+d-i passwd/username string ansible
+# Create passwd mkpasswd -m sha-512. MD-5 crypt not work.
+d-i passwd/user-password-crypted password $6$n9oxP2WS$FDPXE8WOQtmfl3Thm3kpNBWRc6Ukl5VZl2ycIBK.h9BH/5NUKnvUqWxXBkogjHsW4kXSCgbC26O/llQKAOWTP/
+d-i passwd/user-default-groups string sudo
+d-i passwd/root-login boolean true
+d-i passwd/root-password-crypted password $6$B9MvKlP0sYb$yV23889l1BQE44aysdaqr7USVw/NkPJBsOsxVzAXRQ3mzEtXCapc/0Y6g8wmpGeCzOWd/ovCeUuNWGF/mFd/I0
+d-i user-setup/allow-password-weak boolean true
+
+### POST INSTALLATION COMMANDS ###
+# Run custom commands post installation
+ubiquity ubiquity/success_command string \
+# Remove Welcome splash screen on user login
+  in-target rm -f /usr/lib/gnome-initial-setup/gnome-initial-setup; \
+# Скрипт для ввода компа в домен
+# Распаковывается в /opt/
+  cp -a /cdrom/install/pbis-open-8.8.0.506.linux.x86_64.deb.sh /target/home/ansible/; \
+  in-target chmod 777 /home/ansible/pbis-open-8.8.0.506.linux.x86_64.deb.sh; \
+#  in-target bash /home/ansible/pbis-open-8.8.0.506.linux.x86_64.deb.sh; \
+  cp -a /cdrom/install/ntp.conf /target/etc/; \
+  in-target chmod 644 /etc/install/ntp.conf; \
+# Удаление игр по умолчанию
+  in-target rm -f /usr/games/*; \
+# сюда ложить скрипты автостарта
+  in-target mkdir -p /etc/skel/.config/autostart; \
+# сюда скопировать файл с настроеным удаленным дустопуом по screen-sharing (user)
+  in-target mkdir -p /etc/skel/.config/dconf; \
+  cp -a /cdrom/install/user /target/etc/skel/.config/dconf/; \
+  in-target chmod 644 /etc/skel/.config/dconf/user; \
+# - сюда положить public key пользователя admin для доступа с сервера без пароля
+  in-target mkdir -p /root/.ssh; \
+  cp -a /cdrom/install/authorized_key /target/root/.ssh/; \
+  in-target chmod 600 /root/.ssh/authorized_key; \
+# Отключение автоапдейтов и апгрейдов
+  cp -a /cdrom/install/20auto-upgrades /target/etc/apt/apt.conf.d/; \
+# Драйдера для HP 
+  cp -a /cdrom/install/hplip-3.19.1.run /target/home/ansible/; \
+  in-target chmod 777 /home/ansible/hplip-3.19.1.run; \
+# Resolv.conf для домена АД
+  cp -a /cdrom/install/stub-resolv.conf /target/run/systemd/resolve/; \
+  in-target chmod 644 /run/systemd/resolve/stub-resolv.conf; \
+# Chrome install
+  cp -a /cdrom/install/google-chrome.list /target/etc/apt/sources.list.d/; \
+  in-target chmod 644 /etc/apt/sources.list.d/google-chrome.list; \
+  cp -a /cdrom/install/linux_signing_key.pub /target/tmp/; \
+  in-target apt-key add /tmp/linux_signing_key.pub; \
+# Install needed packages
+  in-target apt -y update; \
+  in-target apt install -y mc openssh-server git python python3 net-tools ntpdate google-chrome-stable; \
+  in-target apt -y upgrage
+  
+popularity-contest popularity-contest/participate boolean false
+
+
